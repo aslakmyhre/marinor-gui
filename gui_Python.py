@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkintermapview import TkinterMapView
 from typing import Callable, Optional
 import queue
 import threading
@@ -68,7 +69,7 @@ class marinorGUI:
         main.rowconfigure(0, weight=1)
         main.columnconfigure(0, weight=1)
 
-        # Notebook with tabs
+        # lag tabs
         self.tabs = ttk.Notebook(main)
         self.tabs.grid(row=0, column=0, sticky="nsew")
 
@@ -80,7 +81,7 @@ class marinorGUI:
         self.tabs.add(self.tab_2, text="Tab 2")
         self.tabs.add(self.tab_3, text="Tab 3")
 
-        # Populate tabs
+        # innhold i tab
         self._populate_tab1(self.live_view_tab)
         self._populate_tab2(self.tab_2)
         self._populate_tab3(self.tab_3)
@@ -89,15 +90,33 @@ class marinorGUI:
         self.tabs.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
     def _populate_tab1(self, master: tk.Misc) -> None:
-        """Example content for Tab 1."""
-        lbl = self._create_label(master, text="This is Tab 1")
-        lbl.grid(row=0, column=0, sticky="w")
+        """Live Map View – viser et Kartverket-kart."""
 
-        self.tab1_status = self._create_label(
-            master, text="Status: idle", style="Status.TLabel"
+        # Kart-widgeten
+        self.map_widget = TkinterMapView(master, width=800, height=600, corner_radius=0)
+        self.map_widget.grid(row=0, column=0, sticky="nsew")
+
+        # Gjør at kartet fyller taben
+        master.rowconfigure(0, weight=1)
+        master.columnconfigure(0, weight=1)
+
+        # Sett Kartverket som tileserver (WebMercator)
+        # Kartverket WMTS-dokumentasjon viser bruk av dette tile-mønsteret [1](https://github.com/supercoder-dev/TkinterMapView_140)
+        tile_url = (
+            "https://cache.kartverket.no/v1/wmts/1.0.0/"
+            "topo/default/webmercator/{z}/{y}/{x}.png"
         )
-        self._create_style("Status.TLabel", foreground="#555")
-        self.tab1_status.grid(row=1, column=0, sticky="w", pady=(6, 0))
+
+        self.map_widget.set_tile_server(
+            tile_url,
+            max_zoom=18,
+            tile_size=256
+        )
+
+        # Startposisjon (Oslo)
+        self.map_widget.set_position(59.9139, 10.7522)
+        self.map_widget.set_zoom(12)
+        
 
     def _populate_tab2(self, master: tk.Misc) -> None:
         """Example content for Tab 2."""
