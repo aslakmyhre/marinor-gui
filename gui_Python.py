@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
 from tkintermapview import TkinterMapView
+from tkinter import messagebox
+
+
 from typing import Callable, Optional
 import queue
 import threading
@@ -90,33 +93,44 @@ class marinorGUI:
         self.tabs.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
     def _populate_tab1(self, master: tk.Misc) -> None:
-        """Live Map View – viser et Kartverket-kart."""
+        """Live Map View – viser et Kartverket-kart med koordinat-søk."""
+        # ----- Topp-rad med inputfelt og knapp -----
+        topbar = ttk.Frame(master)
+        topbar.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        topbar.columnconfigure(1, weight=1)
 
-        # Kart-widgeten
+        ttk.Label(topbar, text="Koordinat (lat, lon):").grid(row=0, column=0, padx=(0, 8), sticky="w")
+        ttk.Label(topbar, text="© Kartverket \n kartverket.no").grid(row=0, column=3, padx=(0, 8), sticky="w")
+
+        self.coord_entry = ttk.Entry(topbar)
+        self.coord_entry.bind("<Return>", lambda e: self.center_on_input())
+        self.coord_entry.grid(row=0, column=1, sticky="ew")
+
+        ttk.Button(
+            topbar,
+            text="Sentrer",
+            command=self.center_on_input
+        ).grid(row=0, column=2, padx=(8, 0))
+
+        # ----- Kart-widgeten under topbaren -----
         self.map_widget = TkinterMapView(master, width=800, height=600, corner_radius=0)
-        self.map_widget.grid(row=0, column=0, sticky="nsew")
+        self.map_widget.grid(row=1, column=0, sticky="nsew")
 
-        # Gjør at kartet fyller taben
-        master.rowconfigure(0, weight=1)
+        # La taben strekke
+        master.rowconfigure(1, weight=1)
         master.columnconfigure(0, weight=1)
 
-        # Sett Kartverket som tileserver (WebMercator)
-        # Kartverket WMTS-dokumentasjon viser bruk av dette tile-mønsteret [1](https://github.com/supercoder-dev/TkinterMapView_140)
+        # Kartverket tile-server (WebMercator WMTS-cache)
         tile_url = (
             "https://cache.kartverket.no/v1/wmts/1.0.0/"
             "topo/default/webmercator/{z}/{y}/{x}.png"
         )
+        self.map_widget.set_tile_server(tile_url, max_zoom=18, tile_size=256)
 
-        self.map_widget.set_tile_server(
-            tile_url,
-            max_zoom=18,
-            tile_size=256
-        )
-
-        # Startposisjon (Oslo)
+        # Startposisjon – Oslo
         self.map_widget.set_position(59.9139, 10.7522)
-        self.map_widget.set_zoom(12)
-        
+        self.map_widget.set_zoom(18)
+            
 
     def _populate_tab2(self, master: tk.Misc) -> None:
         """Example content for Tab 2."""
@@ -179,6 +193,79 @@ class marinorGUI:
     def on_close(self) -> None:
         """Close this window and stop the app if it's the last one."""
         self.window.destroy()
+
+    def center_on_input(self):
+        """Leser koordinat fra self.coord_entry, validerer og sentrerer kartet."""
+        text = (self.coord_entry.get() or "").strip()
+        try:
+            lat, lon = self._parse_latlon(text)
+        except ValueError as e:
+            messagebox.showerror("Ugyldig koordinat", str(e))
+            return
+
+        # Valider rekkevidde
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            messagebox.showerror("Ugyldig koordinat", "Lat må være i [-90,90] og Lon i [-180,180].")
+            return
+
+        # Sentrer kartet
+        self.map_widget.set_position(lat, lon)
+        # (valgfritt) juster zoom hvis du vil sikre et minimumsnivå:
+        # if self.map_widget.get_zoom() < 10:
+        #     self.map_widget.set_zoom(12)
+
+    def _parse_latlon(self, text: str) -> tuple[float, float]:
+        """
+        Parse en enkel lat/lon i desimalgrader.
+        Godtar separatorer: komma, semikolon, mellomrom.
+        Godtar (valgfritt) N/S/E/W etter tallene.
+        Eksempler:
+        '59.9139,10.7522'
+        '59.9139 10.7522'
+        '59.9139; 10.7522'
+        '59.9139 N, 10.7522 E'
+        """
+        # Normaliser: bytt semikolon til komma, komprimér whitespace
+        t = text.replace(";", ",").replace("  ", " ").strip()
+
+        # Del på komma hvis mulig, ellers på whitespace
+        if "," in t:
+            parts = [p.strip() for p in t.split(",")]
+        else:
+            parts = t.split()
+
+        if len(parts) != 2:
+            raise ValueError("Skriv på formen 'lat, lon' (f.eks. 59.9139, 10.7522).")
+
+        def read_num_with_hemisphere(s: str, is_lat: bool) -> float:
+            # Fjern grads‑symboler og normaliser
+            s2 = s.replace("°", "").strip()
+            # Sjekk for N/S/E/W
+            hemi = None
+            if s2[-1:].upper() in ("N", "S", "E", "W"):
+                hemi = s2[-1:].upper()
+                s2 = s2[:-1].strip()
+
+            val = float(s2)  # kan kaste ValueError (fanges av kallende funksjon)
+
+            if hemi:
+                if hemi == "S":
+                    val = -abs(val)
+                elif hemi == "W":
+                    val = -abs(val)
+                # N/E beholder positivt fortegn
+
+            # Grov rekkevidde-sjekk isolert
+            if is_lat and not (-90 <= val <= 90):
+                raise ValueError("Breddegrad (lat) må være i [-90, 90].")
+            if not is_lat and not (-180 <= val <= 180):
+                raise ValueError("Lengdegrad (lon) må være i [-180, 180].")
+
+            return val
+
+        lat = read_num_with_hemisphere(parts[0], is_lat=True)
+        lon = read_num_with_hemisphere(parts[1], is_lat=False)
+        return lat, lon
 
     # ---------- Background data model (prep for 5G/LiDAR) ----------
 
