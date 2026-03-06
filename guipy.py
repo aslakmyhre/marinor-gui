@@ -200,9 +200,9 @@ class marinorGUI:
         ## TODO: generaliser, bruker nå lat=63,4 grader
         return step*0.00002
     
-    ## simulator
+    ## simulator COPILOT
     def start_udp_receiver(self):
-        import socket
+        import socket, threading
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(("0.0.0.0", 5005))
 
@@ -210,8 +210,39 @@ class marinorGUI:
             while True:
                 data, _ = sock.recvfrom(1024)
                 msg = data.decode().strip()
+                parts = msg.split()
+                if len(parts) >= 3 and parts[0] == "GPS":
+                    try:
+                        lat = float(parts[1]); lon = float(parts[2])
+                    except ValueError:
+                        continue
+                    # Kjør GUI-oppdatering i hovedtråd:
+                    self.window.after(0, self.update_boat_marker, lat, lon, None, None)
 
         threading.Thread(target=receiver, daemon=True).start()
+
+    def update_boat_marker(
+        self,
+        lat: float,
+        lon: float,
+        heading: float | None = None,
+        speed: float | None = None
+    ):
+        # Opprett første gang, flytt senere
+        label = "Båt"
+        if heading is not None:
+            label += f" {heading:.0f}°"
+        if speed is not None:
+            label += f" {speed:.1f} m/s"
+
+        if getattr(self, "boat_marker", None) is None:
+            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
+        else:
+            self.boat_marker.delete()
+            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
+
+        # (valgfritt) hold kartet sentrert
+        self.map_widget.set_position(lat, lon)
 
 
 ### TODO: håndter input fra båt
