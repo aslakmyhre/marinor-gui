@@ -7,6 +7,9 @@ from tkinter import messagebox
 from typing import Callable, Optional
 import threading
 
+from kartverket import KartverketMap
+from inputhandler import HandleInput
+
 class marinorGUI:
     def __init__(self, parent: tk.Tk):
         self.parent = parent
@@ -18,7 +21,8 @@ class marinorGUI:
         self.style = ttk.Style()
 
         #simulator:
-        self.start_udp_receiver()
+        self.handle_input = HandleInput(self)
+        self.handle_input.start_udp_receiver()
 
         self.configure_layout()
         self.build_ui()
@@ -76,9 +80,15 @@ class marinorGUI:
         topbar.columnconfigure(1, weight=1)
 
         ttk.Label(topbar, text="Koordinat (lat, lon):").grid(row=0, column=0, padx=(0, 8), sticky="w")
-        ttk.Label(topbar, text="© Kartverket \n kartverket.no").grid(row=0, column=3, padx=(0, 8), sticky="w")
+        ttk.Label(topbar, text="© Kartverket \nkartverket.no").grid(row=0, column=3, padx=(12, 0), sticky="w")
 
-        # skriv inn egne koord.
+        map_frame = ttk.Frame(master)
+        map_frame.grid(row=1, column=0, sticky="nsew")
+        master.rowconfigure(0, weight=0) # topbar
+        master.rowconfigure(1, weight=1) # kart
+        master.columnconfigure(0, weight=1)
+
+        self.map_controller = KartverketMap(map_frame)
         self.coord_entry = ttk.Entry(topbar)
         self.coord_entry.bind("<Return>", lambda e: self.center_on_input())
         self.coord_entry.grid(row=0, column=1, sticky="ew")
@@ -88,26 +98,7 @@ class marinorGUI:
             text="Sentrer",
             command=self.center_on_input
         ).grid(row=0, column=2, padx=(8, 0))
-
-        # kart
-        self.map_widget = TkinterMapView(master, width=800, height=600, corner_radius=0)
-        self.map_widget.grid(row=1, column=0, sticky="nsew")
-
-        master.rowconfigure(1, weight=1)
-        master.columnconfigure(0, weight=1)
-
-        # Kartverket tile-server
-        tile_url = (
-            "https://cache.kartverket.no/v1/wmts/1.0.0/"
-            "topo/default/webmercator/{z}/{y}/{x}.png"
-        )
-        self.map_widget.set_tile_server(tile_url, max_zoom=18, tile_size=256)
-
-        # Default start posisjon
-        self.map_widget.set_position(63.43074, 10.40401)
-        self.map_widget.set_zoom(18) #18 maks zoom
             
-
     def populate_tab2(self, master: tk.Misc) -> None:
         #foreløpig tom
         lbl = self.create_label(master, text="This is Tab 2")
@@ -132,11 +123,11 @@ class marinorGUI:
     def create_style(self, name: str, **kwargs) -> None:
         self.style.configure(name, **kwargs)
 
-    ## map-funksjoner
+    ## sentrer
     def center_on_input(self):
         text = (self.coord_entry.get() or "").strip()
         try:
-            lat, lon = self.parse_latlon(text)
+            lat, lon = self.map_controller.parse_latlon(text)
         except ValueError as e:
             messagebox.showerror("Ugyldig koordinat", str(e))
             return
@@ -147,49 +138,7 @@ class marinorGUI:
             return
 
         # Sentrer kartet
-        self.map_widget.set_position(lat, lon)
-
-    #input koordinater
-    def parse_latlon(self, text: str) -> tuple[float, float]:
-
-        # Normaliser input
-        t = text.replace(";", ",").replace("  ", " ").strip()
-
-        if "," in t:
-            parts = [p.strip() for p in t.split(",")]
-        else:
-            parts = t.split()
-
-        if len(parts) != 2:
-            raise ValueError("Skriv på formen 'lat, lon' (XX.XXXXXX, XX.XXXXXX).")
-
-        def read_num_with_hemisphere(s: str, is_lat: bool) -> float:
-            s2 = s.replace("°", "").strip()
-            hemi = None
-            if s2[-1:].upper() in ("N", "S", "E", "W"):
-                hemi = s2[-1:].upper()
-                s2 = s2[:-1].strip()
-
-            val = float(s2)  # kan kaste ValueError
-
-            if hemi:
-                if hemi == "S":
-                    val = -abs(val)
-                elif hemi == "W":
-                    val = -abs(val)
-                # N/E beholder positivt fortegn
-
-            # verdi-sjekk
-            if is_lat and not (-90 <= val <= 90):
-                raise ValueError("Breddegrad (lat) må være i [-90, 90].")
-            if not is_lat and not (-180 <= val <= 180):
-                raise ValueError("Lengdegrad (lon) må være i [-180, 180].")
-
-            return val
-
-        lat = read_num_with_hemisphere(parts[0], is_lat=True)
-        lon = read_num_with_hemisphere(parts[1], is_lat=False)
-        return lat, lon
+        self.map_controller.center_on(lat, lon)
     
     ## andre funksjoner
     def step_latitude(step):
@@ -199,59 +148,6 @@ class marinorGUI:
         #step*0.000009/cos(lat[rad])
         ## TODO: generaliser, bruker nå lat=63,4 grader
         return step*0.00002
-    
-    ## simulator COPILOT
-    def start_udp_receiver(self):
-        import socket, threading
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(("0.0.0.0", 5005))
-
-        def receiver():
-            while True:
-                data, _ = sock.recvfrom(1024)
-                msg = data.decode().strip()
-                parts = msg.split()
-                if len(parts) >= 3 and parts[0] == "GPS":
-                    try:
-                        lat = float(parts[1]); lon = float(parts[2])
-                    except ValueError:
-                        continue
-                    # Kjør GUI-oppdatering i hovedtråd:
-                    self.window.after(0, self.update_boat_marker, lat, lon, None, None)
-
-        threading.Thread(target=receiver, daemon=True).start()
-
-    def update_boat_marker(
-        self,
-        lat: float,
-        lon: float,
-        heading: float | None = None,
-        speed: float | None = None
-    ):
-        # Opprett første gang, flytt senere
-        label = "Båt"
-        if heading is not None:
-            label += f" {heading:.0f}°"
-        if speed is not None:
-            label += f" {speed:.1f} m/s"
-
-        if getattr(self, "boat_marker", None) is None:
-            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
-        else:
-            self.boat_marker.delete()
-            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
-
-        # (valgfritt) hold kartet sentrert
-        self.map_widget.set_position(lat, lon)
-
-
-### TODO: håndter input fra båt
-class HandleInput:
-    def read_GPS():
-        return 0
-    def read_5G():
-        return 0
-    ##
 
 if __name__ == "__main__":
     root = tk.Tk()
