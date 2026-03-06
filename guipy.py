@@ -3,7 +3,7 @@ from tkinter import ttk
 from tkintermapview import TkinterMapView
 from tkinter import messagebox
 
-
+import csv
 from typing import Callable, Optional
 
 class marinorGUI:
@@ -157,7 +157,7 @@ class marinorGUI:
             parts = t.split()
 
         if len(parts) != 2:
-            raise ValueError("Skriv på formen 'lat, lon' (f.eks. 59.9139, 10.7522).")
+            raise ValueError("Skriv på formen 'lat, lon' (XX.XXXXXX, XX.XXXXXX).")
 
         def read_num_with_hemisphere(s: str, is_lat: bool) -> float:
             s2 = s.replace("°", "").strip()
@@ -196,6 +196,14 @@ class marinorGUI:
         ## TODO: generaliser
         return step*0.00002
 
+
+### TODO: håndter input fra båt
+class HandleInput:
+    def read_GPS():
+        return 0
+    def read_5G():
+        return 0
+    ##
 
 if __name__ == "__main__":
     root = tk.Tk()
