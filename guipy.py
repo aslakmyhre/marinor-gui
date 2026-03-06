@@ -92,7 +92,7 @@ class marinorGUI:
         ttk.Button(
             topbar,
             text="Sentrer",
-            command=self.center_on_input()
+            command=self.center_on_input
         ).grid(row=0, column=2, padx=(8, 0))
             
     def populate_tab2(self, master: tk.Misc) -> None:
