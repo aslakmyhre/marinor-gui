@@ -50,6 +50,23 @@ class marinorGUI:
 
         self.create_style("Header.TLabel", font=("Segoe UI", 16, "bold"))
 
+        header.battery_bar = ttk.Progressbar(
+            header,
+            orient="vertical",
+            length=50,
+            mode="determinate"
+        )
+
+        header.battery_bar.grid(
+            row=0,
+            column=1,
+            sticky="e",
+            padx=20
+        )
+
+        header.battery_bar["maximum"] = 100
+        #header.battery_bar["value"] = 100
+
 
     def create_main_area(self, master: tk.Misc) -> None:
         main = ttk.Frame(master, padding=12)
@@ -141,13 +158,10 @@ class marinorGUI:
         self.map_controller.center_on(lat, lon)
     
     ## andre funksjoner
-    def step_latitude(step):
-        return step*0.000009
-    
-    def step_longitude(step):
-        #step*0.000009/cos(lat[rad])
-        ## TODO: generaliser, bruker nå lat=63,4 grader
-        return step*0.00002
+    """def battery_level(self, batteryPercent):
+        self.battery_bar['value'] = batteryPercent
+        print(batteryPercent)
+        return 0"""
 
 if __name__ == "__main__":
     root = tk.Tk()

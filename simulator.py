@@ -18,22 +18,20 @@ lon = 10.3951
 LAT_STEP = 0.00002
 LON_STEP = 0.00004
 
-global start_time
 start_time=time.perf_counter()
-global battery
-battery = 100
+batterypercent = 100
 
 
 def format_gps(lat, lon):
-    """Returnerer en enkel GPS-pakke du kan bygge videre på."""
     return f"GPS {lat:.6f} {lon:.6f}"
 
 def battery():
+    global start_time, batterypercent
     current_time=time.perf_counter()
-    if current_time-start_time >= 10:
-        battery -=1
+    if current_time-start_time >= 1:
+        batterypercent -=1
         start_time=current_time
-    return battery
+    return f"BATTERY {batterypercent:.6f}"
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -42,7 +40,8 @@ def main():
     print(f"Sender til {HOST}:{PORT} hvert {SEND_INTERVAL}s\n")
 
     global lat, lon
-
+    global start_time, batterypercent
+    
     while True:
         # Generer datapakke
         msg_gps = format_gps(lat, lon)

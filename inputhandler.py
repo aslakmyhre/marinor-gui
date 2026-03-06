@@ -12,12 +12,18 @@ class HandleInput:
                 data, _ = sock.recvfrom(1024)
                 msg = data.decode().strip()
                 parts = msg.split()
-                if len(parts) >= 3 and parts[0] == "GPS":
+                if len(parts) == 3 and parts[0] == "GPS":
                     try:
                         lat = float(parts[1]); lon = float(parts[2])
                     except ValueError:
                         continue
-                    # Kjør GUI-oppdatering i hovedtråd:
                     self.gui.window.after(0,self.gui.map_controller.update_boat_marker,lat, lon, None, None)
+                elif len(parts) == 2 and parts[0] == "BATTERY":
+                    try:
+                        battery = int(parts[1])
+                        #self.gui.window.after(0, self.gui.battery_bar.configure, {"value": battery})
+                        self.gui.window.after(0, self.gui.battery_bar.configure(value=battery))
+                    except ValueError:
+                        continue
 
         threading.Thread(target=receiver, daemon=True).start()
