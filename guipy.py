@@ -253,6 +253,10 @@ class HandleInput:
         return 0
     ##
 
+class KartverketMap:
+    def insertElement():
+        return 0
+
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # skjult rot
