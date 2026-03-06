@@ -5,10 +5,6 @@ from tkinter import messagebox
 
 
 from typing import Callable, Optional
-import queue
-import threading
-import time
-
 
 class marinorGUI:
     def __init__(self, parent: tk.Tk):
@@ -78,6 +74,7 @@ class marinorGUI:
         ttk.Label(topbar, text="Koordinat (lat, lon):").grid(row=0, column=0, padx=(0, 8), sticky="w")
         ttk.Label(topbar, text="© Kartverket \n kartverket.no").grid(row=0, column=3, padx=(0, 8), sticky="w")
 
+        #skriv inn egne koord.
         self.coord_entry = ttk.Entry(topbar)
         self.coord_entry.bind("<Return>", lambda e: self.center_on_input())
         self.coord_entry.grid(row=0, column=1, sticky="ew")
@@ -117,7 +114,7 @@ class marinorGUI:
         lbl = self.create_label(master, text="This is Tab 3")
         lbl.grid(row=0, column=0, sticky="w")
 
-    ## diverse hjelpefunksjoner
+    ## GUI-funksjoner
     def create_button(
         self, master: tk.Misc, text: str, command: Optional[Callable] = None, style: Optional[str] = None
     ) -> ttk.Button:
@@ -131,7 +128,7 @@ class marinorGUI:
     def create_style(self, name: str, **kwargs) -> None:
         self.style.configure(name, **kwargs)
 
-    ###
+    ## map-funksjoner
     def center_on_input(self):
         text = (self.coord_entry.get() or "").strip()
         try:
@@ -189,6 +186,15 @@ class marinorGUI:
         lat = read_num_with_hemisphere(parts[0], is_lat=True)
         lon = read_num_with_hemisphere(parts[1], is_lat=False)
         return lat, lon
+    
+    ## andre funksjoner
+    def step_latitude(step):
+        return step*0.000009
+    
+    def step_longitude(step):
+        #step*0.000009/cos(lat[rad])
+        ## TODO: generaliser
+        return step*0.00002
 
 
 if __name__ == "__main__":
