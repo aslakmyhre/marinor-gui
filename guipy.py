@@ -3,7 +3,7 @@ from tkinter import ttk
 from tkintermapview import TkinterMapView
 from tkinter import messagebox
 
-import csv
+##import csv
 from typing import Callable, Optional
 
 class marinorGUI:
@@ -20,8 +20,8 @@ class marinorGUI:
         self.build_ui()
 
     def configure_layout(self) -> None:
-        self.window.rowconfigure(0, weight=0)  # header
-        self.window.rowconfigure(1, weight=1)  # main
+        self.window.rowconfigure(0, weight=0) # header
+        self.window.rowconfigure(1, weight=1) # main
         self.window.columnconfigure(0, weight=1)
 
     def build_ui(self) -> None:
@@ -74,7 +74,7 @@ class marinorGUI:
         ttk.Label(topbar, text="Koordinat (lat, lon):").grid(row=0, column=0, padx=(0, 8), sticky="w")
         ttk.Label(topbar, text="© Kartverket \n kartverket.no").grid(row=0, column=3, padx=(0, 8), sticky="w")
 
-        #skriv inn egne koord.
+        # skriv inn egne koord.
         self.coord_entry = ttk.Entry(topbar)
         self.coord_entry.bind("<Return>", lambda e: self.center_on_input())
         self.coord_entry.grid(row=0, column=1, sticky="ew")
@@ -193,7 +193,7 @@ class marinorGUI:
     
     def step_longitude(step):
         #step*0.000009/cos(lat[rad])
-        ## TODO: generaliser
+        ## TODO: generaliser, bruker nå lat=63,4 grader
         return step*0.00002
 
 
