@@ -1,7 +1,3 @@
-import tkinter as tk
-from tkinter import ttk
-from tkintermapview import TkinterMapView
-from tkinter import messagebox
 
 class HandleInput:
     def __init__(self, gui):

@@ -41,7 +41,7 @@ def main():
         sock.sendto(encoded, (HOST, PORT))
 
         # Vis i terminal
-        print(f"➡️  Sendt: {msg}")
+        print(f"Sendt: {msg}")
 
         # Oppdater posisjon (rett linje nord-øst)
         lat += LAT_STEP

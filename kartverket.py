@@ -1,7 +1,4 @@
-import tkinter as tk
-from tkinter import ttk
 from tkintermapview import TkinterMapView
-from tkinter import messagebox
 
 class KartverketMap:
     def __init__(self, master):
@@ -44,8 +41,9 @@ class KartverketMap:
             self.boat_marker = self.map.set_marker(lat, lon, text=label)
         
         self.map.set_position(lat, lon)
-        self.visited_path.append(lat,lon)
-        self.map.set_path(self.visited_path, color="red", width=4)
+        self.visited_path.append([lat,lon])
+        if len(self.visited_path)>=4:
+            self.map.set_path(self.visited_path, color="red", width=4)
 
     def parse_latlon(self, text: str) -> tuple[float, float]:
 
