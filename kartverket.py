@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 class KartverketMap:
     def __init__(self, master):
+        self.visited_path = []
         # opprett kartet
         self.map = TkinterMapView(master, width=800, height=600, corner_radius=0)
         self.map.grid(row=0, column=0, sticky="nsew")
@@ -41,6 +42,10 @@ class KartverketMap:
         else:
             self.boat_marker.delete()
             self.boat_marker = self.map.set_marker(lat, lon, text=label)
+        
+        self.map.set_position(lat, lon)
+        self.visited_path.append(lat,lon)
+        self.map.set_path(self.visited_path, color="red", width=4)
 
     def parse_latlon(self, text: str) -> tuple[float, float]:
 
