@@ -148,22 +148,12 @@ class marinorGUI:
         # Sentrer kartet
         self.map_widget.set_position(lat, lon)
 
-
+    #input koordinater
     def parse_latlon(self, text: str) -> tuple[float, float]:
-        """
-        Parse en enkel lat/lon i desimalgrader.
-        Godtar separatorer: komma, semikolon, mellomrom.
-        Godtar (valgfritt) N/S/E/W etter tallene.
-        Eksempler:
-        '59.9139,10.7522'
-        '59.9139 10.7522'
-        '59.9139; 10.7522'
-        '59.9139 N, 10.7522 E'
-        """
-        # Normaliser: bytt semikolon til komma, komprimér whitespace
+
+        # Normaliser input
         t = text.replace(";", ",").replace("  ", " ").strip()
 
-        # Del på komma hvis mulig, ellers på whitespace
         if "," in t:
             parts = [p.strip() for p in t.split(",")]
         else:
@@ -173,15 +163,13 @@ class marinorGUI:
             raise ValueError("Skriv på formen 'lat, lon' (f.eks. 59.9139, 10.7522).")
 
         def read_num_with_hemisphere(s: str, is_lat: bool) -> float:
-            # Fjern grads‑symboler og normaliser
             s2 = s.replace("°", "").strip()
-            # Sjekk for N/S/E/W
             hemi = None
             if s2[-1:].upper() in ("N", "S", "E", "W"):
                 hemi = s2[-1:].upper()
                 s2 = s2[:-1].strip()
 
-            val = float(s2)  # kan kaste ValueError (fanges av kallende funksjon)
+            val = float(s2)  # kan kaste ValueError
 
             if hemi:
                 if hemi == "S":
@@ -190,7 +178,7 @@ class marinorGUI:
                     val = -abs(val)
                 # N/E beholder positivt fortegn
 
-            # Grov rekkevidde-sjekk isolert
+            # verdi-sjekk
             if is_lat and not (-90 <= val <= 90):
                 raise ValueError("Breddegrad (lat) må være i [-90, 90].")
             if not is_lat and not (-180 <= val <= 180):
