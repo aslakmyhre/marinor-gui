@@ -76,19 +76,23 @@ class marinorGUI:
         topbar.columnconfigure(1, weight=1)
 
         ttk.Label(topbar, text="Koordinat (lat, lon):").grid(row=0, column=0, padx=(0, 8), sticky="w")
-        ttk.Label(topbar, text="© Kartverket \n kartverket.no").grid(row=0, column=3, padx=(0, 8), sticky="w")
+        ttk.Label(topbar, text="© Kartverket \nkartverket.no").grid(row=0, column=3, padx=(12, 0), sticky="w")
 
-        # skriv inn egne koord.
+        map_frame = ttk.Frame(master)
+        map_frame.grid(row=1, column=0, sticky="nsew")
+        master.rowconfigure(0, weight=0) # topbar
+        master.rowconfigure(1, weight=1) # kart
+        master.columnconfigure(0, weight=1)
+
+        self.map_controller = KartverketMap(map_frame)
         self.coord_entry = ttk.Entry(topbar)
-        self.coord_entry.bind("<Return>", lambda e: self.map_controller.center_on_input())
+        self.coord_entry.bind("<Return>", lambda e: self.center_on_input())
         self.coord_entry.grid(row=0, column=1, sticky="ew")
-
-        self.map_controller = KartverketMap(master)
 
         ttk.Button(
             topbar,
             text="Sentrer",
-            command=self.map_controller.center_on_input
+            command=self.center_on_input()
         ).grid(row=0, column=2, padx=(8, 0))
             
     def populate_tab2(self, master: tk.Misc) -> None:
@@ -115,11 +119,11 @@ class marinorGUI:
     def create_style(self, name: str, **kwargs) -> None:
         self.style.configure(name, **kwargs)
 
-    ## map-funksjoner
-    """def center_on_input(self):
+    ## sentrer
+    def center_on_input(self):
         text = (self.coord_entry.get() or "").strip()
         try:
-            lat, lon = self.parse_latlon(text)
+            lat, lon = self.map_controller.parse_latlon(text)
         except ValueError as e:
             messagebox.showerror("Ugyldig koordinat", str(e))
             return
@@ -130,49 +134,7 @@ class marinorGUI:
             return
 
         # Sentrer kartet
-        self.map_widget.set_position(lat, lon)"""
-
-    #input koordinater
-    def parse_latlon(self, text: str) -> tuple[float, float]:
-
-        # Normaliser input
-        t = text.replace(";", ",").replace("  ", " ").strip()
-
-        if "," in t:
-            parts = [p.strip() for p in t.split(",")]
-        else:
-            parts = t.split()
-
-        if len(parts) != 2:
-            raise ValueError("Skriv på formen 'lat, lon' (XX.XXXXXX, XX.XXXXXX).")
-
-        def read_num_with_hemisphere(s: str, is_lat: bool) -> float:
-            s2 = s.replace("°", "").strip()
-            hemi = None
-            if s2[-1:].upper() in ("N", "S", "E", "W"):
-                hemi = s2[-1:].upper()
-                s2 = s2[:-1].strip()
-
-            val = float(s2)  # kan kaste ValueError
-
-            if hemi:
-                if hemi == "S":
-                    val = -abs(val)
-                elif hemi == "W":
-                    val = -abs(val)
-                # N/E beholder positivt fortegn
-
-            # verdi-sjekk
-            if is_lat and not (-90 <= val <= 90):
-                raise ValueError("Breddegrad (lat) må være i [-90, 90].")
-            if not is_lat and not (-180 <= val <= 180):
-                raise ValueError("Lengdegrad (lon) må være i [-180, 180].")
-
-            return val
-
-        lat = read_num_with_hemisphere(parts[0], is_lat=True)
-        lon = read_num_with_hemisphere(parts[1], is_lat=False)
-        return lat, lon
+        self.map_controller.center_on(lat, lon)
     
     ## andre funksjoner
     def step_latitude(step):
@@ -218,7 +180,7 @@ class KartverketMap:
         self.map = TkinterMapView(master, width=800, height=600, corner_radius=0)
         self.map.grid(row=0, column=0, sticky="nsew")
 
-        master.rowconfigure(0, weight=1)
+        master.rowconfigure(1, weight=1)
         master.columnconfigure(0, weight=1)
 
         # sett Kartverket WMTS
@@ -238,11 +200,6 @@ class KartverketMap:
     def center_on(self, lat, lon):
         self.map.set_position(lat, lon)
     
-    def center_on_input(self):
-        text = self.coord_entry.get().strip()
-        lat, lon = self.map_controller.parse_latlon(text)
-        self.map_controller.center_on(lat, lon)
-    
     def update_boat_marker(
         self,
         lat: float,
@@ -250,7 +207,6 @@ class KartverketMap:
         heading: float | None = None,
         speed: float | None = None
     ):
-        # Opprett første gang, flytt senere
         label = "Båt"
         if heading is not None:
             label += f" {heading:.0f}°"
@@ -258,13 +214,51 @@ class KartverketMap:
             label += f" {speed:.1f} m/s"
 
         if getattr(self, "boat_marker", None) is None:
-            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
+            self.boat_marker = self.map.set_marker(lat, lon, text=label)
         else:
             self.boat_marker.delete()
-            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
+            self.boat_marker = self.map.set_marker(lat, lon, text=label)
 
-        # (valgfritt) hold kartet sentrert
-        self.map_widget.set_position(lat, lon)
+    def parse_latlon(self, text: str) -> tuple[float, float]:
+
+        # Normaliser input
+        t = text.replace(";", ",").replace("  ", " ").strip()
+
+        if "," in t:
+            parts = [p.strip() for p in t.split(",")]
+        else:
+            parts = t.split()
+
+        if len(parts) != 2:
+            raise ValueError("Skriv på formen 'lat, lon' (XX.XXXXXX, XX.XXXXXX).")
+
+        def read_num_with_hemisphere(s: str, is_lat: bool) -> float:
+            s2 = s.replace("°", "").strip()
+            hemi = None
+            if s2[-1:].upper() in ("N", "S", "E", "W"):
+                hemi = s2[-1:].upper()
+                s2 = s2[:-1].strip()
+
+            val = float(s2)  # kan kaste ValueError
+
+            if hemi:
+                if hemi == "S":
+                    val = -abs(val)
+                elif hemi == "W":
+                    val = -abs(val)
+                # N/E beholder positivt fortegn
+
+            # verdi-sjekk
+            if is_lat and not (-90 <= val <= 90):
+                raise ValueError("Breddegrad (lat) må være i [-90, 90].")
+            if not is_lat and not (-180 <= val <= 180):
+                raise ValueError("Lengdegrad (lon) må være i [-180, 180].")
+
+            return val
+
+        lat = read_num_with_hemisphere(parts[0], is_lat=True)
+        lon = read_num_with_hemisphere(parts[1], is_lat=False)
+        return lat, lon
 
 if __name__ == "__main__":
     root = tk.Tk()
