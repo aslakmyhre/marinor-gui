@@ -3,8 +3,9 @@ from tkinter import ttk
 from tkintermapview import TkinterMapView
 from tkinter import messagebox
 
-import csv
+##import csv
 from typing import Callable, Optional
+import threading
 
 class marinorGUI:
     def __init__(self, parent: tk.Tk):
@@ -16,12 +17,15 @@ class marinorGUI:
         self.window.protocol("WM_DELETE_WINDOW", self.window.quit)
         self.style = ttk.Style()
 
+        #simulator:
+        self.start_udp_receiver()
+
         self.configure_layout()
         self.build_ui()
 
     def configure_layout(self) -> None:
-        self.window.rowconfigure(0, weight=0)  # header
-        self.window.rowconfigure(1, weight=1)  # main
+        self.window.rowconfigure(0, weight=0) # header
+        self.window.rowconfigure(1, weight=1) # main
         self.window.columnconfigure(0, weight=1)
 
     def build_ui(self) -> None:
@@ -74,7 +78,7 @@ class marinorGUI:
         ttk.Label(topbar, text="Koordinat (lat, lon):").grid(row=0, column=0, padx=(0, 8), sticky="w")
         ttk.Label(topbar, text="© Kartverket \n kartverket.no").grid(row=0, column=3, padx=(0, 8), sticky="w")
 
-        #skriv inn egne koord.
+        # skriv inn egne koord.
         self.coord_entry = ttk.Entry(topbar)
         self.coord_entry.bind("<Return>", lambda e: self.center_on_input())
         self.coord_entry.grid(row=0, column=1, sticky="ew")
@@ -193,8 +197,52 @@ class marinorGUI:
     
     def step_longitude(step):
         #step*0.000009/cos(lat[rad])
-        ## TODO: generaliser
+        ## TODO: generaliser, bruker nå lat=63,4 grader
         return step*0.00002
+    
+    ## simulator COPILOT
+    def start_udp_receiver(self):
+        import socket, threading
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(("0.0.0.0", 5005))
+
+        def receiver():
+            while True:
+                data, _ = sock.recvfrom(1024)
+                msg = data.decode().strip()
+                parts = msg.split()
+                if len(parts) >= 3 and parts[0] == "GPS":
+                    try:
+                        lat = float(parts[1]); lon = float(parts[2])
+                    except ValueError:
+                        continue
+                    # Kjør GUI-oppdatering i hovedtråd:
+                    self.window.after(0, self.update_boat_marker, lat, lon, None, None)
+
+        threading.Thread(target=receiver, daemon=True).start()
+
+    def update_boat_marker(
+        self,
+        lat: float,
+        lon: float,
+        heading: float | None = None,
+        speed: float | None = None
+    ):
+        # Opprett første gang, flytt senere
+        label = "Båt"
+        if heading is not None:
+            label += f" {heading:.0f}°"
+        if speed is not None:
+            label += f" {speed:.1f} m/s"
+
+        if getattr(self, "boat_marker", None) is None:
+            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
+        else:
+            self.boat_marker.delete()
+            self.boat_marker = self.map_widget.set_marker(lat, lon, text=label)
+
+        # (valgfritt) hold kartet sentrert
+        self.map_widget.set_position(lat, lon)
 
 
 ### TODO: håndter input fra båt
