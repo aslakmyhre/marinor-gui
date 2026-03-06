@@ -18,7 +18,8 @@ class marinorGUI:
         self.style = ttk.Style()
 
         #simulator:
-        self.start_udp_receiver()
+        self.handle_input = HandleInput(self)
+        self.handle_input.start_udp_receiver()
 
         self.configure_layout()
         self.build_ui()
@@ -146,7 +147,7 @@ class marinorGUI:
         return step*0.00002
     
     ## simulator COPILOT
-    def start_udp_receiver(self):
+    """def start_udp_receiver(self):
         import socket, threading
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(("0.0.0.0", 5005))
@@ -164,15 +165,31 @@ class marinorGUI:
                     # Kjør GUI-oppdatering i hovedtråd:
                     self.window.after(0, self.map_controller.update_boat_marker, lat, lon, None, None)
 
-        threading.Thread(target=receiver, daemon=True).start()
+        threading.Thread(target=receiver, daemon=True).start()"""
 
 ### TODO: håndter input fra båt
 class HandleInput:
-    def read_GPS():
-        return 0
-    def read_5G():
-        return 0
-    ##
+    def __init__(self, gui):
+        self.gui = gui
+    def start_udp_receiver(self):
+        import socket, threading
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(("0.0.0.0", 5005))
+
+        def receiver():
+            while True:
+                data, _ = sock.recvfrom(1024)
+                msg = data.decode().strip()
+                parts = msg.split()
+                if len(parts) >= 3 and parts[0] == "GPS":
+                    try:
+                        lat = float(parts[1]); lon = float(parts[2])
+                    except ValueError:
+                        continue
+                    # Kjør GUI-oppdatering i hovedtråd:
+                    self.gui.window.after(0, self.gui.map_controller.update_boat_marker, lat, lon, None, None)
+
+        threading.Thread(target=receiver, daemon=True).start()
 
 class KartverketMap:
     def __init__(self, master):
