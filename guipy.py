@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 ##import csv
 from typing import Callable, Optional
+import threading
 
 class marinorGUI:
     def __init__(self, parent: tk.Tk):
@@ -15,6 +16,9 @@ class marinorGUI:
         self.window.minsize(900, 600)
         self.window.protocol("WM_DELETE_WINDOW", self.window.quit)
         self.style = ttk.Style()
+
+        #simulator:
+        self.start_udp_receiver()
 
         self.configure_layout()
         self.build_ui()
@@ -195,6 +199,19 @@ class marinorGUI:
         #step*0.000009/cos(lat[rad])
         ## TODO: generaliser, bruker nå lat=63,4 grader
         return step*0.00002
+    
+    ## simulator
+    def start_udp_receiver(self):
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(("0.0.0.0", 5005))
+
+        def receiver():
+            while True:
+                data, _ = sock.recvfrom(1024)
+                msg = data.decode().strip()
+
+        threading.Thread(target=receiver, daemon=True).start()
 
 
 ### TODO: håndter input fra båt
