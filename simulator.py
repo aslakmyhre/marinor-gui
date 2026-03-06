@@ -18,11 +18,22 @@ lon = 10.3951
 LAT_STEP = 0.00002
 LON_STEP = 0.00004
 
+global start_time
+start_time=time.perf_counter()
+global battery
+battery = 100
+
 
 def format_gps(lat, lon):
     """Returnerer en enkel GPS-pakke du kan bygge videre på."""
     return f"GPS {lat:.6f} {lon:.6f}"
 
+def battery():
+    current_time=time.perf_counter()
+    if current_time-start_time >= 10:
+        battery -=1
+        start_time=current_time
+    return battery
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -34,14 +45,18 @@ def main():
 
     while True:
         # Generer datapakke
-        msg = format_gps(lat, lon)
-        encoded = msg.encode()
+        msg_gps = format_gps(lat, lon)
+        encoded_gps = msg_gps.encode()
+
+        msg_battery = battery()
+        encoded_battery=msg_battery.encode()
 
         # Send data til hovedprogrammet
-        sock.sendto(encoded, (HOST, PORT))
+        sock.sendto(encoded_gps, (HOST, PORT))
+        print(f"GPS info sendt: {msg_gps}")
+        sock.sendto(encoded_battery, (HOST, PORT))
+        print(f"Batteri info sendt: {msg_battery}")
 
-        # Vis i terminal
-        print(f"Sendt: {msg}")
 
         # Oppdater posisjon (rett linje nord-øst)
         lat += LAT_STEP
