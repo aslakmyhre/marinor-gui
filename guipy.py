@@ -80,34 +80,17 @@ class marinorGUI:
 
         # skriv inn egne koord.
         self.coord_entry = ttk.Entry(topbar)
-        self.coord_entry.bind("<Return>", lambda e: self.center_on_input())
+        self.coord_entry.bind("<Return>", lambda e: self.map_controller.center_on_input())
         self.coord_entry.grid(row=0, column=1, sticky="ew")
+
+        self.map_controller = KartverketMap(master)
 
         ttk.Button(
             topbar,
             text="Sentrer",
-            command=self.center_on_input
+            command=self.map_controller.center_on_input
         ).grid(row=0, column=2, padx=(8, 0))
-
-        # kart
-        self.map_widget = TkinterMapView(master, width=800, height=600, corner_radius=0)
-        self.map_widget.grid(row=1, column=0, sticky="nsew")
-
-        master.rowconfigure(1, weight=1)
-        master.columnconfigure(0, weight=1)
-
-        # Kartverket tile-server
-        tile_url = (
-            "https://cache.kartverket.no/v1/wmts/1.0.0/"
-            "topo/default/webmercator/{z}/{y}/{x}.png"
-        )
-        self.map_widget.set_tile_server(tile_url, max_zoom=18, tile_size=256)
-
-        # Default start posisjon
-        self.map_widget.set_position(63.43074, 10.40401)
-        self.map_widget.set_zoom(18) #18 maks zoom
             
-
     def populate_tab2(self, master: tk.Misc) -> None:
         #foreløpig tom
         lbl = self.create_label(master, text="This is Tab 2")
@@ -133,7 +116,7 @@ class marinorGUI:
         self.style.configure(name, **kwargs)
 
     ## map-funksjoner
-    def center_on_input(self):
+    """def center_on_input(self):
         text = (self.coord_entry.get() or "").strip()
         try:
             lat, lon = self.parse_latlon(text)
@@ -147,7 +130,7 @@ class marinorGUI:
             return
 
         # Sentrer kartet
-        self.map_widget.set_position(lat, lon)
+        self.map_widget.set_position(lat, lon)"""
 
     #input koordinater
     def parse_latlon(self, text: str) -> tuple[float, float]:
@@ -217,10 +200,49 @@ class marinorGUI:
                     except ValueError:
                         continue
                     # Kjør GUI-oppdatering i hovedtråd:
-                    self.window.after(0, self.update_boat_marker, lat, lon, None, None)
+                    self.window.after(0, self.map_controller.update_boat_marker, lat, lon, None, None)
 
         threading.Thread(target=receiver, daemon=True).start()
 
+### TODO: håndter input fra båt
+class HandleInput:
+    def read_GPS():
+        return 0
+    def read_5G():
+        return 0
+    ##
+
+class KartverketMap:
+    def __init__(self, master):
+        # opprett kartet
+        self.map = TkinterMapView(master, width=800, height=600, corner_radius=0)
+        self.map.grid(row=0, column=0, sticky="nsew")
+
+        master.rowconfigure(0, weight=1)
+        master.columnconfigure(0, weight=1)
+
+        # sett Kartverket WMTS
+        tile_url = (
+            "https://cache.kartverket.no/v1/wmts/1.0.0/"
+            "topo/default/webmercator/{z}/{y}/{x}.png"
+        )
+        self.map.set_tile_server(tile_url, max_zoom=18, tile_size=256)
+
+        # lagre markørstatus
+        self.boat_marker = None
+
+        # start-posisjon
+        self.map.set_position(63.43074, 10.40401)
+        self.map.set_zoom(18)
+
+    def center_on(self, lat, lon):
+        self.map.set_position(lat, lon)
+    
+    def center_on_input(self):
+        text = self.coord_entry.get().strip()
+        lat, lon = self.map_controller.parse_latlon(text)
+        self.map_controller.center_on(lat, lon)
+    
     def update_boat_marker(
         self,
         lat: float,
@@ -243,19 +265,6 @@ class marinorGUI:
 
         # (valgfritt) hold kartet sentrert
         self.map_widget.set_position(lat, lon)
-
-
-### TODO: håndter input fra båt
-class HandleInput:
-    def read_GPS():
-        return 0
-    def read_5G():
-        return 0
-    ##
-
-class KartverketMap:
-    def insertElement():
-        return 0
 
 if __name__ == "__main__":
     root = tk.Tk()
