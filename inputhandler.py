@@ -21,7 +21,6 @@ class HandleInput:
                 elif len(parts) == 2 and parts[0] == "BATTERY":
                     try:
                         battery = int(parts[1])
-                        #self.gui.window.after(0, self.gui.battery_bar.configure, {"value": battery})
                         self.gui.window.after(0, self.gui.battery_bar.configure(value=battery))
                     except ValueError:
                         continue
